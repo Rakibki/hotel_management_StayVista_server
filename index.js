@@ -3,7 +3,7 @@ const app = express()
 require('dotenv').config()
 const cors = require('cors')
 const cookieParser = require('cookie-parser')
-const { MongoClient, ServerApiVersion } = require('mongodb')
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
 const jwt = require('jsonwebtoken')
 const morgan = require('morgan')
 const port = process.env.PORT || 4000
@@ -21,7 +21,6 @@ app.use(morgan('dev'))
 
 const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token
-  console.log(token)
   if (!token) {
     return res.status(401).send({ message: 'unauthorized access' })
   }
@@ -45,6 +44,7 @@ const client = new MongoClient(process.env.DB_URI, {
 async function run() {
   const database = client.db("stayVista_DB");
   const usersCollection = database.collection("usersCollection");
+  const roomsCollection = database.collection("roomsCollection");
   try {
     // auth related api
     app.post('/jwt', async (req, res) => {
@@ -94,6 +94,46 @@ async function run() {
         },
         options
       )
+      res.send(result)
+    })
+
+    // get All Rooms
+    app.get("/rooms", async (req, res) => {
+      const result = await roomsCollection.find().toArray();
+      res.send(result)
+    })
+
+    // get single room
+    app.get("/room/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = {_id: new ObjectId(id)}
+      const result = await roomsCollection.findOne(query);
+      res.send(result)
+    })
+
+    // added room
+    app.post("/rooms", async(req, res) => {
+      const room = req.body;
+      const result = await roomsCollection.insertOne(room)
+      res.send(result)
+    })
+
+    // get Room for admin
+    app.get("/rooms/:email", verifyToken, async (req, res) => {
+      const email = req.params.email;
+      const filter = {'host.email': email}
+      const result = await roomsCollection.find(filter).toArray();
+      res.send(result)
+    })
+
+    // get user role
+    app.get("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      console.log("fiitr");
+      console.log(email);
+      const filter = {email: email}
+      const result = await usersCollection.findOne(filter) 
+      console.log(result);
       res.send(result)
     })
 
