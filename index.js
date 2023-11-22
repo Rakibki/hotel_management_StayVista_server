@@ -6,7 +6,9 @@ const cookieParser = require('cookie-parser')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb')
 const jwt = require('jsonwebtoken')
 const morgan = require('morgan')
-const port = process.env.PORT || 4000
+const port = process.env.PORT || 4000;
+const stripe = require("stripe")(process.env.STRIPE_SECRET);
+
 
 // middleware
 const corsOptions = {
@@ -45,6 +47,7 @@ async function run() {
   const database = client.db("stayVista_DB");
   const usersCollection = database.collection("usersCollection");
   const roomsCollection = database.collection("roomsCollection");
+  const bookingsCollection = database.collection("bookingsCollection");
   try {
     // auth related api
     app.post('/jwt', async (req, res) => {
@@ -134,6 +137,30 @@ async function run() {
       const filter = {email: email}
       const result = await usersCollection.findOne(filter) 
       console.log(result);
+      res.send(result)
+    })
+
+    // payment
+    app.post("/carete-payment-intent", async (req, res) => {
+      const {price} = req.body;
+      const ammout = parseInt(price * 100);
+      if(price > 1 || ammout) return;
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: ammout,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    })
+
+  // bookigs
+    app.post("/bookings", async (req, res) => {
+      const bookData = req.body;
+      const result = await bookingsCollection.findOne(bookData)
       res.send(result)
     })
 
