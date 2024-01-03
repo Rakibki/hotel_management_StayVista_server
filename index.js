@@ -122,7 +122,7 @@ async function run() {
     })
 
     // get Room for admin
-    app.get("/rooms/:email", verifyToken, async (req, res) => {
+    app.get("/rooms/:email", async (req, res) => {
       const email = req.params.email;
       const filter = {'host.email': email}
       const result = await roomsCollection.find(filter).toArray();
@@ -144,7 +144,8 @@ async function run() {
     app.post("/carete-payment-intent", async (req, res) => {
       const {price} = req.body;
       const ammout = parseInt(price * 100);
-      if(price > 1 || ammout) return;
+      // if(price > 0 || ammout) return;
+      console.log(ammout)
 
       const paymentIntent = await stripe.paymentIntents.create({
         amount: ammout,
@@ -160,9 +161,61 @@ async function run() {
   // bookigs
     app.post("/bookings", async (req, res) => {
       const bookData = req.body;
-      const result = await bookingsCollection.findOne(bookData)
+      const result = await bookingsCollection.insertOne(bookData)
       res.send(result)
     })
+
+    // update room
+    app.patch("/room-status/:id", async(req, res) => {
+      const id = req.params.id;
+      console.log(id);
+      const {status} = req.body;
+      const query = {_id: new ObjectId(id)}
+      const updatedDoc = {
+        $set: {
+          booked: status
+        }
+      }
+      const result = await roomsCollection.updateOne(query, updatedDoc)
+      res.send(result)
+    })
+
+    // getMyBookings
+     app.get("/my-bookings/:email", async(req, res) => {
+      const email = req.params.email;
+      const filter = {'guest.email': email}
+      const result = await bookingsCollection.find(filter).toArray();
+      res.send(result);
+     })
+
+     app.get("/managege-booking/:email", async (req, res) => {
+      const email = req.params.email;
+      const filter = {host: email};
+      const result = await bookingsCollection.find(filter).toArray();
+      res.send(result)
+     })
+
+     app.get("/users", async(req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result)
+     })
+
+     app.put("/user/update-Role/:role", async(req, res) => {
+      const email = req.params.id;
+      const user = req.body;
+      const filter = { email: email };
+
+      const options = { upsert: true };
+
+      const updateDoc = {
+        $set: {
+          ...user,
+          timestamp: Date.now()
+        },
+      };
+      const result = await usersCollection.updateOne(filter, updateDoc, options);
+      res.send(result)
+     })
 
     // Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 })
